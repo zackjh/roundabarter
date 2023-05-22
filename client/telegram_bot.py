@@ -1,10 +1,8 @@
 """Defines the behaviour of the Roundabarter Telegram bot."""
 
-from functools import wraps
-import os
 import logging
+import os
 import requests
-import json
 
 from telegram import Update
 from telegram.ext import (
@@ -13,34 +11,17 @@ from telegram.ext import (
     CommandHandler,
 )
 
+from decorators import restricted
+
 # Get environment variables
 TELEGRAM_BOT_API_TOKEN = os.environ["TELEGRAM_BOT_API_TOKEN"]
 FLASK_API_URL = os.environ["FLASK_API_URL"]
 SCRAPE_INTERVAL = int(os.environ["SCRAPE_INTERVAL"])
-LIST_OF_ADMINS = json.loads(os.environ["LIST_OF_ADMINS"])
 
 # Set up app logging
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
 )
-
-
-def restricted(func):
-    """Restricts usage of 'func' to user IDs in the 'LIST_OF_ADMINS' array."""
-
-    @wraps(func)
-    async def wrapped(
-        update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs
-    ):
-        user_id = update.effective_user.id
-        if user_id not in LIST_OF_ADMINS:
-            await update.message.reply_text(
-                "You do not have permission to use this bot."
-            )
-            return
-        return await func(update, context, *args, **kwargs)
-
-    return wrapped
 
 
 @restricted
