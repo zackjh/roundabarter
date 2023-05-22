@@ -1,8 +1,9 @@
 """Defines function decorators that are used for Roundabarter Bot."""
 
-from functools import wraps
 import json
 import os
+
+from functools import wraps
 
 from telegram import Update
 from telegram.ext import (
@@ -14,7 +15,7 @@ LIST_OF_ADMINS = json.loads(os.environ["LIST_OF_ADMINS"])
 
 
 def restricted(func):
-    """Restricts usage of 'func' to user IDs in the 'LIST_OF_ADMINS' array."""
+    """Restricts usage of the 'func' handler to user IDs in the 'LIST_OF_ADMINS' array."""
 
     @wraps(func)
     async def wrapped(

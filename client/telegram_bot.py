@@ -16,7 +16,7 @@ from decorators import restricted
 # Get environment variables
 TELEGRAM_BOT_API_TOKEN = os.environ["TELEGRAM_BOT_API_TOKEN"]
 FLASK_API_URL = os.environ["FLASK_API_URL"]
-SCRAPE_INTERVAL = int(os.environ["SCRAPE_INTERVAL"])
+DEFAULT_SCRAPE_INTERVAL = int(os.environ["DEFAULT_SCRAPE_INTERVAL"])
 
 # Set up app logging
 logging.basicConfig(
@@ -49,11 +49,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if tracked_search["tracked_search_name"] not in job_tracked_search_names:
                 # There is no job scheduled for this tracked search
 
-                # Add the 'check_for_new_listings' job to the job queue and have it run every 10 seconds
+                # Add the 'check_for_new_listings' job to the job queue
                 context.job_queue.run_repeating(
                     check_for_new_listings,
-                    interval=SCRAPE_INTERVAL,
-                    first=SCRAPE_INTERVAL,
+                    interval=tracked_search["scrape_interval"],
+                    first=tracked_search["scrape_interval"],
                     data=tracked_search["tracked_search_name"],
                     chat_id=update.message.chat_id,
                 )
@@ -81,12 +81,13 @@ async def new_tracked_search(update: Update, context: ContextTypes.DEFAULT_TYPE)
         # Get the last argument which is the user's intended tracked search URL
         tracked_search_url = context.args[-1]
 
-        # API call to add the tracked search to the database
+        # API call to add this tracked search to the database
         response = requests.post(
             f"{FLASK_API_URL}/new-tracked-search",
             data={
                 "tracked_search_name": tracked_search_name,
                 "tracked_search_url": tracked_search_url,
+                "scrape_interval": DEFAULT_SCRAPE_INTERVAL,
             },
             timeout=3,
         )
@@ -99,11 +100,11 @@ async def new_tracked_search(update: Update, context: ContextTypes.DEFAULT_TYPE)
         elif response.status_code == 201:
             # Data sucessfully added to the database
 
-            # Add the 'check_for_new_listings' job to the job queue and have it run every 10 seconds
+            # Add the 'check_for_new_listings' job to the job queue
             context.job_queue.run_repeating(
                 check_for_new_listings,
-                interval=SCRAPE_INTERVAL,
-                first=SCRAPE_INTERVAL,
+                interval=DEFAULT_SCRAPE_INTERVAL,
+                first=DEFAULT_SCRAPE_INTERVAL,
                 data=tracked_search_name,
                 chat_id=update.message.chat_id,
             )
@@ -114,14 +115,13 @@ async def new_tracked_search(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
 
 
-@restricted
 async def check_for_new_listings(context: ContextTypes.DEFAULT_TYPE):
     """Sends a message to the user if there are any new listings for a given tracked search."""
 
     # Get tracked search name from Job object
     tracked_search_name = context.job.data
 
-    # API call to get any new listings of the tracked search
+    # API call to get any new listings for this tracked search
     response = requests.put(
         f"{FLASK_API_URL}/get-new-listings/{tracked_search_name}",
         timeout=3,
@@ -174,7 +174,7 @@ async def get_latest_listings(update: Update, context: ContextTypes.DEFAULT_TYPE
         # Concatenate all arguments with whitespaces to get the user's intended tracked search name
         tracked_search_name = " ".join(context.args)
 
-        # API call to get the latest listings of the tracked search
+        # API call to get the latest listings of this tracked search
         response = requests.put(
             f"{FLASK_API_URL}/get-latest-listings/{tracked_search_name}",
             timeout=3,
@@ -235,7 +235,7 @@ async def get_tracked_searches(update: Update, context: ContextTypes.DEFAULT_TYP
             else "<i>1 search is currently being tracked.</i>\n"
         )
         for tracked_search in tracked_searches:
-            tracked_searches_message += f"<a href='{tracked_search['tracked_search_url']}'>{tracked_search['tracked_search_name']}</a>\n"
+            tracked_searches_message += f"<a href='{tracked_search['tracked_search_url']}'>{tracked_search['tracked_search_name']}</a> ({tracked_search['scrape_interval']}s)\n"
 
         # Reply the user
         await update.message.reply_text(
@@ -243,6 +243,77 @@ async def get_tracked_searches(update: Update, context: ContextTypes.DEFAULT_TYP
             parse_mode="HTML",
             disable_web_page_preview=True,
         )
+
+
+@restricted
+async def update_tracked_search_scrape_interval(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+):
+    """Updates the scrape interval of a tracked search."""
+
+    # Validate that there are at least two arguments
+    if len(context.args) < 2:
+        # Reply the user with an error message
+        await update.message.reply_text(
+            "Please enter the name of a search and the new scrape interval."
+        )
+
+    else:
+        # Concatenate all arguments except the last argument with whitespaces
+        # to get the user's intended tracked search name
+        tracked_search_name = " ".join(context.args[:-1])
+
+        # Get the last argument which is the user's intended new scrape interval
+        new_scrape_interval = context.args[-1]
+
+        # Check if 'new_scrape_interval' is not a digit
+        if not new_scrape_interval.isdigit():
+            # Reply the user with an error message
+            await update.message.reply_text("Please enter a valid scrape interval.")
+
+        else:
+            # Convert 'new_scrape_interval' from string to integer
+            new_scrape_interval = int(new_scrape_interval)
+
+            # API call to update the scrape interval of this tracked search in the database
+            response = requests.put(
+                f"{FLASK_API_URL}/update-tracked-search-scrape-interval/{tracked_search_name}",
+                data={
+                    "new_scrape_interval": new_scrape_interval,
+                },
+                timeout=3,
+            )
+
+            if response.status_code == 400:
+                # An error occurred on the back-end
+                # Reply the user with the API response's error message
+                await update.message.reply_text(response.text)
+
+            elif response.status_code == 200:
+                # Tracked search scrape interval in database successfully updated
+
+                # Remove the current 'check_for_new_listings' job for this tracked search from the job queue
+                # Get all currently scheduled jobs
+                jobs = context.job_queue.jobs()
+                for job in jobs:
+                    if job.data == tracked_search_name:
+                        # This job is the one that runs for this tracked search
+                        # Remove this job from the job queue
+                        job.schedule_removal()
+
+                # Add the new 'check_for_new_listings' job for this tracked search with the updated scrape interval to the job queue
+                context.job_queue.run_repeating(
+                    check_for_new_listings,
+                    interval=new_scrape_interval,
+                    first=new_scrape_interval,
+                    data=tracked_search_name,
+                    chat_id=update.message.chat_id,
+                )
+
+                # Reply the user with a success message
+                await update.message.reply_text(
+                    f"The scrape interval of the search '{tracked_search_name}' has been updated to {new_scrape_interval}s."
+                )
 
 
 @restricted
@@ -258,7 +329,7 @@ async def remove_tracked_search(update: Update, context: ContextTypes.DEFAULT_TY
         # Concatenate all arguments with whitespaces to get the user's intended tracked search name
         tracked_search_name = " ".join(context.args)
 
-        # API Call to delete data in the database that is related to the tracked search
+        # API Call to delete data in the database that is related to this tracked search
         response = requests.delete(
             f"{FLASK_API_URL}/delete-tracked-search/{tracked_search_name}",
             timeout=3,
@@ -295,11 +366,15 @@ if __name__ == "__main__":
     get_latest_listings_handler = CommandHandler("fetch", get_latest_listings)
     get_tracked_searches_handler = CommandHandler("list", get_tracked_searches)
     remove_tracked_search_handler = CommandHandler("remove", remove_tracked_search)
+    update_tracked_search_scrape_interval_handler = CommandHandler(
+        "update", update_tracked_search_scrape_interval
+    )
 
     application.add_handler(start_handler)
     application.add_handler(new_tracked_search_handler)
     application.add_handler(get_latest_listings_handler)
     application.add_handler(get_tracked_searches_handler)
     application.add_handler(remove_tracked_search_handler)
+    application.add_handler(update_tracked_search_scrape_interval_handler)
 
     application.run_polling()

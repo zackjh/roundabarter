@@ -1,7 +1,7 @@
 """Defines database methods."""
 
-import sqlite3
 import os
+import sqlite3
 
 # Get environment variables
 DATABASE_LOCATION = os.environ["DATABASE_LOCATION"]
@@ -23,7 +23,8 @@ def create_tracked_searches_table():
         """
             CREATE TABLE IF NOT EXISTS tracked_searches (
                 tracked_search_name TEXT PRIMARY KEY NOT NULL,
-                tracked_search_url TEXT NOT NULL
+                tracked_search_url TEXT NOT NULL,
+                scrape_interval INTEGER NOT NULL
             )
         """
     )
@@ -31,16 +32,16 @@ def create_tracked_searches_table():
     conn.close()
 
 
-def insert_tracked_search(tracked_search_name, tracked_search_url):
+def insert_tracked_search(tracked_search_name, tracked_search_url, scrape_interval):
     """Inserts a record into the 'tracked_searches' table."""
     conn = connect_to_db()
     cur = conn.cursor()
     cur.execute(
         """
             INSERT INTO tracked_searches
-            VALUES (?, ?)
+            VALUES (?, ?, ?)
         """,
-        (tracked_search_name, tracked_search_url),
+        (tracked_search_name, tracked_search_url, scrape_interval),
     )
     conn.commit()
     conn.close()
@@ -63,6 +64,7 @@ def get_tracked_searches():
             {
                 "tracked_search_name": row["tracked_search_name"],
                 "tracked_search_url": row["tracked_search_url"],
+                "scrape_interval": int(row["scrape_interval"]),
             }
         )
     conn.close()
@@ -102,6 +104,22 @@ def get_tracked_search_url_by_name(tracked_search_name):
     row = cur.fetchone()
     conn.close()
     return row["tracked_search_url"]
+
+
+def update_tracked_search_scrape_interval(tracked_search_name, new_scrape_interval):
+    """Updates the 'scrape_interval' field of the record in the 'tracked_searches' table which has the matching 'tracked_search_name'."""
+    conn = connect_to_db()
+    cur = conn.cursor()
+    cur.execute(
+        """
+            UPDATE tracked_searches
+            SET scrape_interval = ?
+            WHERE tracked_search_name = ?
+        """,
+        (new_scrape_interval, tracked_search_name),
+    )
+    conn.commit()
+    conn.close()
 
 
 def delete_tracked_search(tracked_search_name):

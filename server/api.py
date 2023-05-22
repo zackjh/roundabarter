@@ -1,7 +1,9 @@
 """Defines API routes."""
 
 import re
+
 from flask import Flask, request
+
 import db
 import scraper
 
@@ -18,9 +20,10 @@ db.create_listings_table()
 def new_tracked_search():
     """Adds a new tracked search to the database."""
 
-    # Get POST request data
+    # Get POST request form data
     tracked_search_name = request.form["tracked_search_name"]
     tracked_search_url = request.form["tracked_search_url"]
+    scrape_interval = request.form["scrape_interval"]
 
     # Validate that the given tracked search URL is a valid Carousell URL
     if not re.search("^https://www.carousell.sg/search/", tracked_search_url):
@@ -35,7 +38,7 @@ def new_tracked_search():
         return ("The given search name is already in use.", 400)
 
     # Insert a new record into the 'tracked_searches' table
-    db.insert_tracked_search(tracked_search_name, tracked_search_url)
+    db.insert_tracked_search(tracked_search_name, tracked_search_url, scrape_interval)
 
     # Get latest listings for this tracked search
     latest_listings = scraper.scrape_latest_listings(tracked_search_url)
@@ -165,6 +168,38 @@ def get_tracked_searches():
     return (tracked_searches, 200)
 
 
+@app.route(
+    "/update-tracked-search-scrape-interval/<tracked_search_name>", methods=["PUT"]
+)
+def update_tracked_search_scrape_interval(tracked_search_name):
+    """Updates the scrape interval of a tracked search."""
+
+    # Get POST request form data
+    new_scrape_interval = request.form["new_scrape_interval"]
+
+    # Get all the tracked search names that are in the 'tracked_searches' table
+    valid_tracked_search_names = db.get_tracked_search_names()
+
+    # Verify that the given tracked search name is a pre-existing one
+    # in the 'tracked_searches' table
+    if tracked_search_name not in valid_tracked_search_names:
+        # Tracked search name is invalid as it doesn't exist in the 'tracked_searches' table
+        # Return error response
+        return (
+            f"The search '{tracked_search_name}' is not currently being tracked.",
+            400,
+        )
+
+    # Update the scrape interval of this tracked search
+    db.update_tracked_search_scrape_interval(tracked_search_name, new_scrape_interval)
+
+    # Return success response
+    return (
+        f"The scrape interval of the search {tracked_search_name} has been updated to {new_scrape_interval}.",
+        200,
+    )
+
+
 @app.route("/delete-tracked-search/<tracked_search_name>", methods=["DELETE"])
 def delete_tracked_search(tracked_search_name):
     """Deletes a tracked search."""
@@ -182,10 +217,10 @@ def delete_tracked_search(tracked_search_name):
             400,
         )
 
-    # Delete the tracked search
+    # Delete this tracked search
     db.delete_tracked_search(tracked_search_name)
 
-    # Delete the tracked search's listings
+    # Delete this tracked search's listings
     db.delete_listing(tracked_search_name)
 
     # Return success response
