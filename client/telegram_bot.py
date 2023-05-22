@@ -1,8 +1,10 @@
 """Defines the behaviour of the Roundabarter Telegram bot."""
 
+from functools import wraps
 import os
 import logging
 import requests
+import json
 
 from telegram import Update
 from telegram.ext import (
@@ -15,6 +17,7 @@ from telegram.ext import (
 TELEGRAM_BOT_API_TOKEN = os.environ["TELEGRAM_BOT_API_TOKEN"]
 FLASK_API_URL = os.environ["FLASK_API_URL"]
 SCRAPE_INTERVAL = int(os.environ["SCRAPE_INTERVAL"])
+LIST_OF_ADMINS = json.loads(os.environ["LIST_OF_ADMINS"])
 
 # Set up app logging
 logging.basicConfig(
@@ -22,6 +25,25 @@ logging.basicConfig(
 )
 
 
+def restricted(func):
+    """Restricts usage of 'func' to user IDs in the 'LIST_OF_ADMINS' array."""
+
+    @wraps(func)
+    async def wrapped(
+        update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs
+    ):
+        user_id = update.effective_user.id
+        if user_id not in LIST_OF_ADMINS:
+            await update.message.reply_text(
+                "You do not have permission to use this bot."
+            )
+            return
+        return await func(update, context, *args, **kwargs)
+
+    return wrapped
+
+
+@restricted
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Initialises the bot."""
 
@@ -59,6 +81,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Roundabarter bot is running.")
 
 
+@restricted
 async def new_tracked_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Sets up a new tracked search."""
 
@@ -110,6 +133,7 @@ async def new_tracked_search(update: Update, context: ContextTypes.DEFAULT_TYPE)
             )
 
 
+@restricted
 async def check_for_new_listings(context: ContextTypes.DEFAULT_TYPE):
     """Sends a message to the user if there are any new listings for a given tracked search."""
 
@@ -156,6 +180,7 @@ async def check_for_new_listings(context: ContextTypes.DEFAULT_TYPE):
         )
 
 
+@restricted
 async def get_latest_listings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Returns the latest listings of a given tracked search."""
 
@@ -198,6 +223,7 @@ async def get_latest_listings(update: Update, context: ContextTypes.DEFAULT_TYPE
             )
 
 
+@restricted
 async def get_tracked_searches(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Returns all currently tracked searches."""
 
@@ -238,6 +264,7 @@ async def get_tracked_searches(update: Update, context: ContextTypes.DEFAULT_TYP
         )
 
 
+@restricted
 async def remove_tracked_search(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Removes a tracked search."""
 
