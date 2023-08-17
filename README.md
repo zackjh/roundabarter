@@ -18,7 +18,7 @@ Roundabarter has been dockerized and thus it is recommended that you use Docker 
 3. Build the Docker image for the client using:
 
     ```
-    $ docker build -t roundabarter-client client/.
+    $ docker build -t roundabarter-telegram-bot client/.
     ```
 
 4. [Create a new Telegram bot and obtain your bot token](https://core.telegram.org/bots/tutorial#obtain-your-bot-token)
