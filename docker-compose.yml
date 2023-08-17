@@ -1,0 +1,19 @@
+services:
+  server:
+    image: roundabarter-server
+    container_name: roundabarter-server
+    volumes:
+      - roundabarter-db:/etc/roundabarter
+    environment:
+      DATABASE_LOCATION: /etc/roundabarter/database.db
+  telegram-bot:
+    image: roundabarter-telegram-bot
+    container_name: roundabarter-telegram-bot
+    environment:
+      TELEGRAM_BOT_API_TOKEN: <YOUR TELEGRAM BOT TOKEN>
+      FLASK_API_URL: http://roundabarter-server:5000
+      DEFAULT_SCRAPE_INTERVAL: 600
+      LIST_OF_ADMINS: "[<YOUR TELEGRAM USER ID>]"
+
+volumes:
+  roundabarter-db:
