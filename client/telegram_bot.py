@@ -13,6 +13,8 @@ from telegram.ext import (
 
 from decorators import restricted
 
+from utils import format_seconds
+
 # Get environment variables
 TELEGRAM_BOT_API_TOKEN = os.environ["TELEGRAM_BOT_API_TOKEN"]
 FLASK_API_URL = os.environ["FLASK_API_URL"]
@@ -235,7 +237,10 @@ async def get_tracked_searches(update: Update, context: ContextTypes.DEFAULT_TYP
             else "<i>1 search is currently being tracked.</i>\n"
         )
         for tracked_search in tracked_searches:
-            tracked_searches_message += f"<a href='{tracked_search['tracked_search_url']}'>{tracked_search['tracked_search_name']}</a> ({tracked_search['scrape_interval']}s)\n"
+            scrape_interval_formatted = format_seconds(
+                tracked_search["scrape_interval"]
+            )
+            tracked_searches_message += f"<a href='{tracked_search['tracked_search_url']}'>{tracked_search['tracked_search_name']}</a> ({scrape_interval_formatted})\n"
 
         # Reply the user
         await update.message.reply_text(
@@ -312,7 +317,7 @@ async def update_tracked_search_scrape_interval(
 
                 # Reply the user with a success message
                 await update.message.reply_text(
-                    f"The scrape interval of the search '{tracked_search_name}' has been updated to {new_scrape_interval}s."
+                    f"The scrape interval of the search '{tracked_search_name}' has been updated to {format_seconds(new_scrape_interval)}."
                 )
 
 
