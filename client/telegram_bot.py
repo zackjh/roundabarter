@@ -152,7 +152,13 @@ async def check_for_new_listings(context: ContextTypes.DEFAULT_TYPE):
             else f"<i>There is 1 new listing for the search '{tracked_search_name}'!</i>\n"
         )
         for listing in new_listings:
-            new_listings_message += f"{listing['price'][1:]} - <a href='{listing['url']}'>{listing['title']}</a>\n"
+            price = listing["price"]
+            if price != "FREE":
+                price = price[1:]
+
+            new_listings_message += (
+                f"{price} - <a href='{listing['url']}'>{listing['title']}</a>\n"
+            )
 
         # Reply the user
         await context.bot.send_message(
@@ -196,7 +202,13 @@ async def get_latest_listings(update: Update, context: ContextTypes.DEFAULT_TYPE
             # Create the message that the bot will reply the user with
             latest_listings_message = f"<i>Here are the {len(latest_listings)} most recent listings for the search '{tracked_search_name}':</i>\n"
             for listing in latest_listings:
-                latest_listings_message += f"{listing['price'][1:]} - <a href='{listing['url']}'>{listing['title']}</a>\n"
+                price = listing["price"]
+                if price != "FREE":
+                    price = price[1:]
+
+                latest_listings_message += (
+                    f"{price} - <a href='{listing['url']}'>{listing['title']}</a>\n"
+                )
 
             # Reply the user with a success message
             await update.message.reply_text(
