@@ -44,6 +44,9 @@ def scrape_latest_listings(url, number_of_listings=5):
         if p_tags_data[2] != "Buyer Protection":
             p_tags_data.insert(2, "No Buyer Protection")
 
+        if p_tags_data[3] != "Bumped":
+            p_tags_data.insert(3, "Not Bumped")
+
         a_tags = listing_card.find_all("a")
 
         a_tags_data = list(
@@ -54,13 +57,17 @@ def scrape_latest_listings(url, number_of_listings=5):
             "username": p_tags_data[0],
             "date": p_tags_data[1],
             "protection": p_tags_data[2],
-            "title": p_tags_data[3],
-            "price": p_tags_data[4],
-            "description": p_tags_data[5],
+            "bumped": p_tags_data[3],
+            "title": p_tags_data[4],
+            "price": p_tags_data[5],
+            "description": p_tags_data[6],
             "seller_profile_url": a_tags_data[0],
             "url": url,
         }
 
         latest_listing_data.append(listing_data)
+
+        with open("logs.txt", "w") as f1:
+            f1.write(str(latest_listing_data))
 
     return latest_listing_data
