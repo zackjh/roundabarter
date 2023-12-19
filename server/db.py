@@ -124,7 +124,6 @@ def update_tracked_search_scrape_interval(tracked_search_name, new_scrape_interv
 
 def delete_tracked_search(tracked_search_name):
     """Deletes the record in the 'tracked_searches' table which has the matching 'tracked_search_name'."""
-    print(tracked_search_name)
     conn = connect_to_db()
     cur = conn.cursor()
     cur.execute(
