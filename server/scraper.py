@@ -67,7 +67,4 @@ def scrape_latest_listings(url, number_of_listings=5):
 
         latest_listing_data.append(listing_data)
 
-        with open("logs.txt", "w") as f1:
-            f1.write(str(latest_listing_data))
-
     return latest_listing_data
