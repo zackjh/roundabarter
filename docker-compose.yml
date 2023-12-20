@@ -1,13 +1,13 @@
 services:
   server:
-    image: roundabarter-server
+    image: zackjh/roundabarter-server:x64
     container_name: roundabarter-server
     volumes:
       - roundabarter-db:/etc/roundabarter
     environment:
       DATABASE_LOCATION: /etc/roundabarter/database.db
   telegram-bot:
-    image: roundabarter-telegram-bot
+    image: zackjh/roundabarter-telegram-bot:x64
     container_name: roundabarter-telegram-bot
     environment:
       TELEGRAM_BOT_API_TOKEN: <YOUR TELEGRAM BOT TOKEN>
